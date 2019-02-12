@@ -143,3 +143,18 @@ still be compilable with cmake and make./
 ## How to write a README
 A well written README file can enhance your project and portfolio.  Develop your abilities to create professional README files by completing [this free course](https://www.udacity.com/course/writing-readmes--ud777).
 
+# Model
+For path planning, I create 4 state shown in the following list. The Upper state is selected if possible.
+
+1. Go straight
+1. Go left lane
+1. Go right lane
+1. Slow down
+
+In the Go straight state, the vehicle follows the current lane increasing the speed within the speed limits. If the distance from the forward car is too close (40m), the vehicle cannot select this state.
+
+In the Go left lane state, the vehicle change the following lane to left. The speed policy is same as the Go straight state. If the distance from the forward car on the left lane or the distance from the backward car on the left lane is too close, the vehicle cannot select this state.
+
+In the Go right lane state, the vehicle change the following lane to right. The speed policy is same as the Go straight state. If the distance from the forward car on the right lane or the distance from the backward car on the right lane is too close, the vehicle cannot select this state.
+
+When all above state is not selected, the vehicle select the Slow down state. In this state, the vehicle cannot run in fast speed and cannot change lane. So the vehicle just down the speed to do not hit the other car.
