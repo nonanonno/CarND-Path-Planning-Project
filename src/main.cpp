@@ -31,7 +31,7 @@ int main()
 
 	int lane = 1;
 
-	double ref_vel = 0;
+	double ref_vel = 0; // mph
 
 	h.onMessage([&map, &lane, &ref_vel](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
 										uWS::OpCode opCode) {
@@ -66,16 +66,11 @@ int main()
 						car_s = tele.end_path_s;
 					}
 
-					json msgJson;
-
-					vector<double> next_x_vals;
-					vector<double> next_y_vals;
-
 					std::vector<double> ptsx, ptsy;
 
 					auto ref_x = tele.x;
 					auto ref_y = tele.y;
-					auto ref_yaw = deg2rad(tele.yaw);
+					auto ref_yaw = tele.yaw;
 
 					if (prev_size < 2)
 					{
@@ -102,33 +97,34 @@ int main()
 					}
 
 					// create 3 trajectories
-					bool too_close = false;
-
-					for (int i = 0; i < tele.sensor_fusion.size(); i++)
+					bool too_close = true;
+					for (auto dir : {0, -1, 1})
 					{
-						float d = tele.sensor_fusion[i].d;
-						if (d < 2 + 4 * lane + 2 && d > 2 + 4 * lane - 2)
+						auto next_lane = lane + dir;
+						if (next_lane < 0 || next_lane > 2)
 						{
-							double vx = tele.sensor_fusion[i].vx;
-							double vy = tele.sensor_fusion[i].vy;
-							double check_speed = sqrt(vx * vx + vy * vy);
-							double check_car_s = tele.sensor_fusion[i].s;
-							check_car_s += (double)prev_size * 0.02 * check_speed;
-							std::cout << check_car_s << ", ";
-							if (check_car_s > car_s && check_car_s - car_s < 30)
-							{
-								too_close = true;
-								if (lane > 0)
-								{
-									lane = 0;
-								}
-							}
+							continue;
+						}
+						auto collision = drive::collide(car_s, tele.s, min(ref_vel, tele.speed), next_lane, 0.02 * prev_size, tele.sensor_fusion);
+						std::cout << next_lane << ": " << collision << ", ";
+
+						if (!collision)
+						{
+							lane = next_lane;
+							too_close = false;
+							break;
 						}
 					}
+					std::cout << ", " << ref_vel << ", " << tele.speed << std::endl;
 
 					if (too_close)
 					{
-						ref_vel -= 0.224;
+						auto fvel = drive::forwardCar(lane, tele.s, tele.sensor_fusion);
+						std::cout << fvel << std::endl;
+						if (ref_vel > fvel)
+						{
+							ref_vel -= 0.224;
+						}
 					}
 					else if (ref_vel < 49.5)
 					{
@@ -152,15 +148,18 @@ int main()
 						// shift car reference angle to 0 degree
 						auto shift_x = ptsx[i] - ref_x;
 						auto shift_y = ptsy[i] - ref_y;
-
-						ptsx[i] = shift_x * cos(-ref_yaw) - shift_y * sin(-ref_yaw);
-						ptsy[i] = shift_x * sin(-ref_yaw) + shift_y * cos(-ref_yaw);
+						auto tmp = rotate(shift_x, shift_y, -ref_yaw);
+						ptsx[i] = tmp[0];
+						ptsy[i] = tmp[1];
 					}
 
 					tk::spline s;
 					s.set_points(ptsx, ptsy);
 
+					vector<double> next_x_vals;
+					vector<double> next_y_vals;
 					// less than 50
+					/*
 					for (int i = 0; i < tele.previous_path_x.size(); i++)
 					{
 						next_x_vals.push_back(tele.previous_path_x[i]);
@@ -182,8 +181,10 @@ int main()
 						double x_ref = x_point;
 						double y_ref = y_point;
 
-						x_point = x_ref * cos(ref_yaw) - y_ref * sin(ref_yaw);
-						y_point = x_ref * sin(ref_yaw) + y_ref * cos(ref_yaw);
+						auto tmp = rotate(x_ref, y_ref, ref_yaw);
+
+						x_point = tmp[0];
+						y_point = tmp[1];
 
 						x_point += ref_x;
 						y_point += ref_y;
@@ -191,13 +192,11 @@ int main()
 						next_x_vals.push_back(x_point);
 						next_y_vals.push_back(y_point);
 					}
-
+					*/
+					drive::createTrajectory(tele, map, lane, ref_vel, next_x_vals, next_y_vals);
 					// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
-					msgJson["next_x"] = next_x_vals;
-					msgJson["next_y"] = next_y_vals;
 
-					auto msg = "42[\"control\"," + msgJson.dump() + "]";
-
+					auto msg = drive::createMessage(next_x_vals, next_y_vals);
 					//this_thread::sleep_for(chrono::milliseconds(1000));
 					ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
 				}

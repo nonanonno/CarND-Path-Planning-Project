@@ -12,6 +12,13 @@ constexpr inline double distance(double x1, double y1, double x2, double y2)
 {
 	return sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
 }
+constexpr inline std::array<double, 2> rotate(double x, double y, double theta)
+{
+	return {
+		x * cos(theta) - y * sin(theta),
+		x * sin(theta) + y * cos(theta),
+	};
+}
 
 namespace io
 {

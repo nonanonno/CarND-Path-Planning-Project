@@ -5,7 +5,7 @@
 namespace drive
 {
 
-Telemetry::Telemetry(const nlohmann::json &obj) : x(obj["x"]), y(obj["y"]), s(obj["s"]), d(obj["d"]), yaw(obj["yaw"]), speed(obj["speed"]), previous_path_x(obj["previous_path_x"].size()), previous_path_y(obj["previous_path_y"].size()), end_path_s(obj["end_path_s"]), end_path_d(obj["end_path_d"]), sensor_fusion(obj["sensor_fusion"].size())
+Telemetry::Telemetry(const nlohmann::json &obj) : x(obj["x"]), y(obj["y"]), s(obj["s"]), d(obj["d"]), yaw(deg2rad(obj["yaw"])), speed(obj["speed"]), previous_path_x(obj["previous_path_x"].size()), previous_path_y(obj["previous_path_y"].size()), end_path_s(obj["end_path_s"]), end_path_d(obj["end_path_d"]), sensor_fusion(obj["sensor_fusion"].size())
 {
 	for (size_t i = 0; i < previous_path_x.size(); i++)
 	{
@@ -25,6 +25,14 @@ Telemetry::Telemetry(const nlohmann::json &obj) : x(obj["x"]), y(obj["y"]), s(ob
 			item[6],
 		};
 	}
+}
+
+std::string createMessage(const std::vector<double> &next_x, const std::vector<double> &next_y)
+{
+	nlohmann::json j;
+	j["next_x"] = next_x;
+	j["next_y"] = next_y;
+	return "42[\"control\"," + j.dump() + "]";
 }
 
 } // namespace drive
